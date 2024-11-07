@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, Link as LinkIcon, FileVideo } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from './AuthContext';
 
 interface VideoUploadProps {
   onVideoSelect: (file: File | string) => void;
@@ -9,33 +10,44 @@ interface VideoUploadProps {
 
 export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoSelect }) => {
   const [videoUrl, setVideoUrl] = useState('');
+  const { user } = useAuth();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
+    if (!user) {
+      toast.error('Please sign in to upload videos');
+      return;
+    }
+
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
-      if (file.size > 100 * 1024 * 1024) { // 100MB limit
+      if (file.size > 100 * 1024 * 1024) {
         toast.error('File size must be less than 100MB');
         return;
       }
       onVideoSelect(file);
-      toast.success('Video selected successfully!');
     }
-  }, [onVideoSelect]);
+  }, [onVideoSelect, user]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'video/*': ['.mp4', '.mov', '.avi', '.mkv']
     },
-    maxFiles: 1
+    maxFiles: 1,
+    disabled: !user
   });
 
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast.error('Please sign in to add videos');
+      return;
+    }
+
     if (videoUrl.trim()) {
       onVideoSelect(videoUrl);
       setVideoUrl('');
-      toast.success('Video URL added successfully!');
     }
   };
 
@@ -44,12 +56,15 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoSelect }) => {
       <div
         {...getRootProps()}
         className={`p-8 border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors
-          ${isDragActive ? 'border-purple-500 bg-purple-50' : 'border-gray-300 hover:border-purple-400'}`}
+          ${isDragActive ? 'border-[#81b29a] bg-[#81b29a]/10' : 'border-gray-300 hover:border-[#81b29a]'}
+          ${!user ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         <input {...getInputProps()} />
         <FileVideo className="mx-auto h-12 w-12 text-gray-400" />
         <p className="mt-2 text-sm text-gray-600">
-          {isDragActive
+          {!user
+            ? 'Please sign in to upload videos'
+            : isDragActive
             ? 'Drop the video here...'
             : 'Drag & drop a video file here, or click to select'}
         </p>
@@ -71,11 +86,13 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoSelect }) => {
           value={videoUrl}
           onChange={(e) => setVideoUrl(e.target.value)}
           placeholder="Paste video URL here"
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#81b29a] focus:border-[#81b29a]"
+          disabled={!user}
         />
         <button
           type="submit"
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+          disabled={!user}
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#81b29a] hover:bg-[#81b29a]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#81b29a] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <LinkIcon className="h-4 w-4 mr-2" />
           Add URL
