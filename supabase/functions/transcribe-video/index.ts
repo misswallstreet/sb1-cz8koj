@@ -24,8 +24,8 @@ serve(async (req) => {
     }
 
     // Create Supabase client with service role key
-    const supabaseUrl = Deno.env.get('URL');
-    const supabaseKey = Deno.env.get('SERVICE_ROLE');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Supabase credentials are not configured');
