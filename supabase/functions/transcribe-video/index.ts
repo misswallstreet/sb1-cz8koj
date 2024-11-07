@@ -13,25 +13,12 @@ serve(async (req) => {
 
   try {
     const { videoUrl } = await req.json();
-    
-    if (!videoUrl) {
-      throw new Error('Video URL is required');
-    }
-
-    const apiKey = Deno.env.get('ASSEMBLYAI_API_KEY');
-    if (!apiKey) {
-      throw new Error('AssemblyAI API key is not configured');
-    }
 
     // Create Supabase client with service role key
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase credentials are not configured');
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+    const supabaseAdmin = createClient(
+      Deno.env.get('URL') ?? '',
+      Deno.env.get('SERVICE_ROLE') ?? ''
+    );
 
     // Create a new transcription record
     const { data: transcription, error: insertError } = await supabaseAdmin
@@ -45,16 +32,13 @@ serve(async (req) => {
       .select()
       .single();
 
-    if (insertError) {
-      console.error('Database insert error:', insertError);
-      throw new Error('Failed to create transcription record');
-    }
+    if (insertError) throw insertError;
 
     // Submit transcription to AssemblyAI
     const submitResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
       method: 'POST',
       headers: {
-        'Authorization': apiKey,
+        'Authorization': Deno.env.get('ASSEMBLYAI_API_KEY') ?? '',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -64,48 +48,29 @@ serve(async (req) => {
     });
 
     if (!submitResponse.ok) {
-      const errorData = await submitResponse.json().catch(() => ({}));
-      console.error('AssemblyAI error:', errorData);
-      throw new Error(`Failed to submit transcription job: ${submitResponse.statusText}`);
+      throw new Error('Failed to submit transcription job');
     }
 
-    const assemblyData = await submitResponse.json();
-    
-    if (!assemblyData.id) {
-      throw new Error('No transcription ID received from AssemblyAI');
-    }
+    const { id: assemblyId } = await submitResponse.json();
 
     // Update transcription record with AssemblyAI ID
-    const { error: updateError } = await supabaseAdmin
+    await supabaseAdmin
       .from('transcriptions')
       .update({
-        external_id: assemblyData.id,
+        external_id: assemblyId,
       })
       .eq('id', transcription.id);
 
-    if (updateError) {
-      console.error('Database update error:', updateError);
-      throw new Error('Failed to update transcription record');
-    }
-
     return new Response(
-      JSON.stringify({ 
-        id: transcription.id,
-        status: 'processing',
-        message: 'Transcription job created successfully' 
-      }),
+      JSON.stringify({ id: transcription.id }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       },
     );
   } catch (error) {
-    console.error('Transcription error:', error);
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'An unexpected error occurred',
-        details: error.stack
-      }),
+      JSON.stringify({ error: error.message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
