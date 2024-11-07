@@ -1,11 +1,11 @@
 import React from 'react';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './components/AuthContext';
+import { AuthProvider, useAuth } from './components/AuthContext';
 import { Dashboard } from './components/Dashboard';
 import { Login } from './components/Login';
 import { LandingPage } from './components/LandingPage';
+import { SignupPage } from './components/SignupPage';
 import { PricingPage } from './components/PricingPage';
-import { useAuth } from './components/AuthContext';
 
 const AppContent = () => {
   const { user, loading } = useAuth();
@@ -18,20 +18,22 @@ const AppContent = () => {
     );
   }
 
+  // Handle public routes first
+  switch (window.location.pathname) {
+    case '/signup':
+      return <SignupPage />;
+    case '/pricing':
+      return <PricingPage />;
+    case '/login':
+      return <Login />;
+  }
+
+  // Protected routes
   if (user) {
     return <Dashboard />;
   }
 
-  const path = window.location.pathname;
-  
-  if (path === '/login') {
-    return <Login />;
-  }
-  
-  if (path === '/pricing') {
-    return <PricingPage />;
-  }
-
+  // Default to landing page
   return <LandingPage />;
 };
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileVideo, Wand2, Clock, Sparkles, Upload, Link as LinkIcon } from 'lucide-react';
 import { Navbar } from './Navbar';
+import { Footer } from './Footer';
 import toast from 'react-hot-toast';
 
 export const LandingPage: React.FC = () => {
@@ -34,7 +35,7 @@ export const LandingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen flex flex-col">
       <Navbar />
       
       {/* Hero Section with Upload */}
@@ -181,6 +182,8 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 };

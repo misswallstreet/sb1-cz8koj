@@ -2,6 +2,17 @@ import React from 'react';
 import { FileVideo } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
+  const isHomePage = window.location.pathname === '/';
+
+  const handleFeaturesClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    if (isHomePage) {
+      document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.location.href = '/#features';
+    }
+  };
+
   return (
     <nav className="bg-white shadow-sm fixed w-full top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -20,6 +31,7 @@ export const Navbar: React.FC = () => {
               </a>
               <a
                 href="#features"
+                onClick={handleFeaturesClick}
                 className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
               >
                 Features
