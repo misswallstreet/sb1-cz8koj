@@ -123,7 +123,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center">
               <FileVideo className="h-8 w-8 text-[#81b29a]" />
-              <span className="ml-2 text-xl font-semibold text-gray-900">Video Transcriber</span>
+              <span className="ml-2 text-xl font-semibold text-gray-900">Transcriptor</span>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">{user?.email}</span>
