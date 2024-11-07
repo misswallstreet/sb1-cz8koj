@@ -24,6 +24,8 @@ export interface TranscriptionJob {
   error_message?: string;
   external_id?: string;
   user_id: string;
+  filename?: string;
+  minutes?: number;
 }
 
 export class TranscriptionError extends Error {
@@ -33,10 +35,17 @@ export class TranscriptionError extends Error {
   }
 }
 
-export async function uploadVideo(file: File): Promise<string> {
+function calculateMinutes(text: string): number {
+  // Average speaking rate is about 150 words per minute
+  const words = text.split(/\s+/).length;
+  return Math.max(0.5, Math.ceil(words / 150)); // Minimum of 0.5 minutes
+}
+
+export async function uploadVideo(file: File): Promise<{ url: string; filename: string }> {
   try {
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
+    const uniqueId = Math.random().toString(36).substring(2);
+    const fileName = `${uniqueId}.${fileExt}`;
     const filePath = `${fileName}`;
 
     const { data, error } = await supabase.storage
@@ -59,7 +68,7 @@ export async function uploadVideo(file: File): Promise<string> {
       throw new TranscriptionError('Failed to generate public URL for uploaded video');
     }
 
-    return publicUrl;
+    return { url: publicUrl, filename: file.name };
   } catch (error) {
     if (error instanceof TranscriptionError) {
       throw error;
@@ -68,9 +77,9 @@ export async function uploadVideo(file: File): Promise<string> {
   }
 }
 
-export async function createTranscriptionJob(videoUrl: string): Promise<TranscriptionJob> {
+export async function createTranscriptionJob(videoUrl: string, filename?: string): Promise<TranscriptionJob> {
   if (!assemblyAiKey) {
-    throw new TranscriptionError('AssemblyAI API key not configured. Please check your environment variables.');
+    throw new TranscriptionError('AssemblyAI API key not configured');
   }
 
   try {
@@ -86,7 +95,8 @@ export async function createTranscriptionJob(videoUrl: string): Promise<Transcri
         {
           video_url: videoUrl,
           status: 'pending',
-          user_id: user.id
+          user_id: user.id,
+          filename: filename
         }
       ])
       .select()
@@ -163,7 +173,7 @@ export async function createTranscriptionJob(videoUrl: string): Promise<Transcri
 
 export async function getTranscriptionStatus(jobId: string): Promise<TranscriptionJob> {
   if (!assemblyAiKey) {
-    throw new TranscriptionError('AssemblyAI API key not configured. Please check your environment variables.');
+    throw new TranscriptionError('AssemblyAI API key not configured');
   }
 
   try {
@@ -206,6 +216,7 @@ export async function getTranscriptionStatus(jobId: string): Promise<Transcripti
 
     if (result.status === 'completed') {
       updateData.transcription_text = result.text;
+      updateData.minutes = calculateMinutes(result.text);
     } else if (result.status === 'error') {
       updateData.error_message = result.error;
     }

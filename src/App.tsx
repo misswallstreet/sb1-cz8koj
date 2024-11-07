@@ -4,6 +4,7 @@ import { AuthProvider } from './components/AuthContext';
 import { Dashboard } from './components/Dashboard';
 import { Login } from './components/Login';
 import { LandingPage } from './components/LandingPage';
+import { PricingPage } from './components/PricingPage';
 import { useAuth } from './components/AuthContext';
 
 const AppContent = () => {
@@ -21,7 +22,17 @@ const AppContent = () => {
     return <Dashboard />;
   }
 
-  return window.location.pathname === '/login' ? <Login /> : <LandingPage />;
+  const path = window.location.pathname;
+  
+  if (path === '/login') {
+    return <Login />;
+  }
+  
+  if (path === '/pricing') {
+    return <PricingPage />;
+  }
+
+  return <LandingPage />;
 };
 
 const App = () => {

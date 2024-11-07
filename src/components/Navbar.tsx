@@ -11,6 +11,20 @@ export const Navbar: React.FC = () => {
               <FileVideo className="h-8 w-8 text-[#81b29a]" />
               <span className="ml-2 text-xl font-bold text-gray-900">Transcriptor</span>
             </a>
+            <div className="hidden md:flex ml-10 space-x-8">
+              <a
+                href="/pricing"
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Pricing
+              </a>
+              <a
+                href="#features"
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Features
+              </a>
+            </div>
           </div>
           <div className="flex items-center space-x-4">
             <a

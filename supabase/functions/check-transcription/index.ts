@@ -7,6 +7,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function calculateMinutes(text: string): number {
+  const words = text.split(/\s+/).filter(word => word.length > 0).length;
+  const minutes = words / 150;
+  return Math.max(0.1, Number(minutes.toFixed(2)));
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -29,17 +35,23 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
+    // Get transcription details
     const { data: transcription, error: getError } = await supabaseAdmin
       .from('transcriptions')
       .select('*')
       .eq('id', transcriptionId)
       .single();
 
-    if (getError) throw getError;
+    if (getError) {
+      console.error('Error fetching transcription:', getError);
+      throw getError;
+    }
+
     if (!transcription?.external_id) {
       throw new Error('No external ID found for transcription');
     }
 
+    // Check transcription status with AssemblyAI
     const statusResponse = await fetch(
       `https://api.assemblyai.com/v2/transcript/${transcription.external_id}`,
       {
@@ -56,29 +68,87 @@ serve(async (req) => {
 
     const result = await statusResponse.json();
 
-    const updateData: Record<string, any> = {
-      status: result.status === 'completed' ? 'completed' : result.status === 'error' ? 'failed' : 'processing'
-    };
+    if (result.status === 'completed' && result.text) {
+      const minutes = calculateMinutes(result.text);
+      console.log(`Calculated minutes for transcription ${transcriptionId}:`, minutes);
 
-    if (result.status === 'completed') {
-      updateData.transcription_text = result.text;
+      // First, verify the current state
+      const { data: currentState, error: stateError } = await supabaseAdmin
+        .from('transcriptions')
+        .select('minutes, status')
+        .eq('id', transcriptionId)
+        .single();
+
+      if (stateError) {
+        console.error('Error checking current state:', stateError);
+        throw stateError;
+      }
+
+      console.log('Current state:', currentState);
+
+      // Update with minutes
+      const { data: updateData, error: updateError } = await supabaseAdmin
+        .from('transcriptions')
+        .update({
+          status: 'completed',
+          transcription_text: result.text,
+          minutes: minutes
+        })
+        .eq('id', transcriptionId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating transcription:', updateError);
+        throw updateError;
+      }
+
+      console.log('Update result:', updateData);
+
+      return new Response(
+        JSON.stringify({
+          id: transcriptionId,
+          status: 'completed',
+          transcription_text: result.text,
+          minutes: minutes
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
     } else if (result.status === 'error') {
-      updateData.error_message = result.error;
+      const { error: updateError } = await supabaseAdmin
+        .from('transcriptions')
+        .update({
+          status: 'failed',
+          error_message: result.error
+        })
+        .eq('id', transcriptionId);
+
+      if (updateError) {
+        console.error('Error updating failed status:', updateError);
+        throw updateError;
+      }
+
+      return new Response(
+        JSON.stringify({
+          id: transcriptionId,
+          status: 'failed',
+          error_message: result.error
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
     }
 
-    const { error: updateError } = await supabaseAdmin
-      .from('transcriptions')
-      .update(updateData)
-      .eq('id', transcriptionId);
-
-    if (updateError) throw updateError;
-
+    // Still processing
     return new Response(
       JSON.stringify({
         id: transcriptionId,
-        status: updateData.status,
-        transcription_text: updateData.transcription_text,
-        error_message: updateData.error_message
+        status: 'processing'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
