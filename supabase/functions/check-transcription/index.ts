@@ -13,12 +13,25 @@ serve(async (req) => {
 
   try {
     const { transcriptionId } = await req.json();
+    
+    if (!transcriptionId) {
+      throw new Error('Transcription ID is required');
+    }
+
+    const apiKey = Deno.env.get('ASSEMBLYAI_API_KEY');
+    if (!apiKey) {
+      throw new Error('AssemblyAI API key is not configured');
+    }
 
     // Create Supabase client with service role key
-    const supabaseAdmin = createClient(
-      Deno.env.get('URL') ?? '',
-      Deno.env.get('SERVICE_ROLE') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('URL');
+    const supabaseKey = Deno.env.get('SERVICE_ROLE');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase credentials are not configured');
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
     // Get transcription record
     const { data: transcription, error: getError } = await supabaseAdmin
@@ -27,54 +40,80 @@ serve(async (req) => {
       .eq('id', transcriptionId)
       .single();
 
-    if (getError) throw getError;
-    if (!transcription.external_id) throw new Error('No external ID found');
+    if (getError) {
+      console.error('Database fetch error:', getError);
+      throw new Error('Failed to fetch transcription record');
+    }
+
+    if (!transcription.external_id) {
+      throw new Error('No external ID found for transcription');
+    }
 
     // Check status from AssemblyAI
     const statusResponse = await fetch(
       `https://api.assemblyai.com/v2/transcript/${transcription.external_id}`,
       {
         headers: {
-          'Authorization': Deno.env.get('ASSEMBLYAI_API_KEY') ?? '',
+          'Authorization': apiKey,
         },
       }
     );
 
     if (!statusResponse.ok) {
-      throw new Error('Failed to check transcription status');
+      const errorData = await statusResponse.json().catch(() => ({}));
+      console.error('AssemblyAI status error:', errorData);
+      throw new Error(`Failed to check transcription status: ${statusResponse.statusText}`);
     }
 
     const result = await statusResponse.json();
 
     // Update transcription record based on status
     if (result.status === 'completed') {
-      await supabaseAdmin
+      const { error: updateError } = await supabaseAdmin
         .from('transcriptions')
         .update({
           status: 'completed',
           transcription_text: result.text,
         })
         .eq('id', transcriptionId);
+
+      if (updateError) {
+        console.error('Database update error:', updateError);
+        throw new Error('Failed to update transcription record');
+      }
     } else if (result.status === 'error') {
-      await supabaseAdmin
+      const { error: updateError } = await supabaseAdmin
         .from('transcriptions')
         .update({
           status: 'failed',
           error_message: result.error,
         })
         .eq('id', transcriptionId);
+
+      if (updateError) {
+        console.error('Database update error:', updateError);
+        throw new Error('Failed to update transcription record');
+      }
     }
 
     return new Response(
-      JSON.stringify({ status: result.status, text: result.text }),
+      JSON.stringify({
+        status: result.status,
+        text: result.text,
+        error: result.error
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
     );
   } catch (error) {
+    console.error('Status check error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message || 'An unexpected error occurred',
+        details: error.stack
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
