@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileVideo } from 'lucide-react';
+import { Glasses } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const isHomePage = window.location.pathname === '/';
@@ -19,8 +19,8 @@ export const Navbar: React.FC = () => {
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center">
             <a href="/" className="flex items-center">
-              <FileVideo className="h-8 w-8 text-[#81b29a]" />
-              <span className="ml-2 text-xl font-bold text-gray-900">Transcriptor</span>
+              <Glasses className="h-8 w-8 text-[#81b29a] transform -rotate-12" />
+              <span className="ml-2 text-xl font-bold text-gray-900">Voxi Scribe</span>
             </a>
             <div className="hidden md:flex ml-10 space-x-8">
               <a

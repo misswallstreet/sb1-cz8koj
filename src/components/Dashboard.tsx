@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileVideo, LogOut, Clock } from 'lucide-react';
+import { Glasses, LogOut, Clock } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { VideoUpload } from './VideoUpload';
 import { TranscriptionStatus } from './TranscriptionStatus';
@@ -121,6 +121,37 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const handleRetry = async (transcription: any) => {
+    try {
+      // Update the transcription status to pending
+      const { error: updateError } = await supabase
+        .from('transcriptions')
+        .update({
+          status: 'pending',
+          error_message: null,
+          external_id: null,
+          transcription_text: null
+        })
+        .eq('id', transcription.id);
+
+      if (updateError) throw updateError;
+
+      // Start a new transcription job
+      const newTranscription = await createTranscriptionJob(transcription.video_url, transcription.filename);
+      
+      if (newTranscription.status === 'failed') {
+        throw new TranscriptionError(newTranscription.error_message || 'Retry failed');
+      }
+
+      toast.success('Transcription retry started');
+      
+      // Refresh the transcriptions list
+      loadTranscriptions();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to retry transcription');
+    }
+  };
+
   const handleDownload = (transcription: any) => {
     if (!transcription.transcription_text) {
       toast.error('No transcription text available');
@@ -144,8 +175,8 @@ export const Dashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center">
-              <FileVideo className="h-8 w-8 text-[#81b29a]" />
-              <span className="ml-2 text-xl font-semibold text-gray-900">Transcriptor</span>
+              <Glasses className="h-8 w-8 text-[#81b29a] transform -rotate-12" />
+              <span className="ml-2 text-xl font-semibold text-gray-900">Voxi Scribe</span>
             </div>
             <div className="flex items-center space-x-6">
               <div className="flex items-center text-sm text-gray-600">
@@ -188,6 +219,7 @@ export const Dashboard: React.FC = () => {
           <TranscriptionHistory
             transcriptions={transcriptions}
             onDownload={handleDownload}
+            onRetry={handleRetry}
             hasMore={hasMore}
             onLoadMore={loadMore}
             loading={loading}

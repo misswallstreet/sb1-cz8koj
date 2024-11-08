@@ -1,28 +1,14 @@
 import React, { useState } from 'react';
 import { Zap, Rocket, Sparkles } from 'lucide-react';
-import { PRICING_TIERS, calculateSavings } from '../lib/stripe';
+import { PRICING_TIERS, calculateSavings } from '../lib/pricing';
 import { PricingTier } from './PricingTier';
-import { CheckoutModal } from './CheckoutModal';
 import { Footer } from './Footer';
 import { Navbar } from './Navbar';
-import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 export const PricingPage: React.FC = () => {
   const [isAnnual, setIsAnnual] = useState(true);
-  const [selectedTier, setSelectedTier] = useState<typeof PRICING_TIERS[keyof typeof PRICING_TIERS] | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const handleGetStarted = async (tier: typeof PRICING_TIERS[keyof typeof PRICING_TIERS]) => {
-    if (tier.name === 'Free') {
-      window.location.href = '/login';
-      return;
-    }
-
-    setSelectedTier(tier);
-    setIsModalOpen(true);
-  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -85,8 +71,7 @@ export const PricingPage: React.FC = () => {
                   key={key}
                   tier={{ ...tier, icon: Icon }}
                   isAnnual={isAnnual}
-                  loading={loading && selectedTier?.name === tier.name}
-                  onGetStarted={() => handleGetStarted(tier)}
+                  loading={loading}
                   savings={savings}
                 />
               );
@@ -96,18 +81,6 @@ export const PricingPage: React.FC = () => {
       </div>
 
       <Footer />
-
-      {selectedTier && (
-        <CheckoutModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedTier(null);
-          }}
-          selectedTier={selectedTier}
-          isAnnual={isAnnual}
-        />
-      )}
     </div>
   );
 };

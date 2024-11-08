@@ -1,11 +1,17 @@
 import React from 'react';
-import { Check, LucideIcon } from 'lucide-react';
+import { Check, LucideIcon, Loader2 } from 'lucide-react';
+import { createCheckoutSession } from '../lib/stripe';
+import toast from 'react-hot-toast';
 
 interface PricingTierProps {
   tier: {
     name: string;
     description: string;
     price: {
+      monthly: string;
+      annual: string;
+    };
+    priceIds: {
       monthly: string;
       annual: string;
     };
@@ -17,7 +23,6 @@ interface PricingTierProps {
   };
   isAnnual: boolean;
   loading: boolean;
-  onGetStarted: () => void;
   savings: number;
 }
 
@@ -25,12 +30,40 @@ export const PricingTier: React.FC<PricingTierProps> = ({
   tier,
   isAnnual,
   loading,
-  onGetStarted,
   savings
 }) => {
   const Icon = tier.icon;
   const price = isAnnual ? tier.price.annual : tier.price.monthly;
   const interval = isAnnual ? '/year' : '/month';
+
+  const handleGetStarted = async () => {
+    if (tier.name === 'Free') {
+      window.location.href = '/signup';
+      return;
+    }
+
+    try {
+      const priceId = isAnnual ? tier.priceIds.annual : tier.priceIds.monthly;
+      
+      const { url, error } = await createCheckoutSession({
+        priceId,
+        tierName: tier.name,
+        interval: isAnnual ? 'year' : 'month'
+      });
+
+      if (error) {
+        throw new Error(error);
+      }
+
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to start checkout');
+    }
+  };
 
   return (
     <div className={`relative rounded-2xl bg-white p-8 shadow-lg ${tier.popular ? 'border-2 border-[#81b29a]' : ''}`}>
@@ -56,7 +89,7 @@ export const PricingTier: React.FC<PricingTierProps> = ({
           <span className="text-4xl font-bold tracking-tight text-gray-900">${price}</span>
           <span className="ml-1 text-sm font-semibold text-gray-600">{interval}</span>
         </p>
-        {isAnnual && (
+        {isAnnual && savings > 0 && (
           <p className="mt-1 text-sm text-[#81b29a]">
             Save {savings}% with annual billing
           </p>
@@ -73,18 +106,16 @@ export const PricingTier: React.FC<PricingTierProps> = ({
       </ul>
 
       <button
-        onClick={onGetStarted}
+        onClick={handleGetStarted}
         disabled={loading}
         className={`w-full rounded-lg py-2.5 px-4 text-sm font-semibold text-white shadow-sm 
           bg-gradient-to-br ${tier.color} ${tier.hoverColor} focus-visible:outline focus-visible:outline-2 
-          focus-visible:outline-offset-2 focus-visible:outline-[#81b29a] disabled:opacity-50 disabled:cursor-not-allowed`}
+          focus-visible:outline-offset-2 focus-visible:outline-[#81b29a] disabled:opacity-50 disabled:cursor-not-allowed
+          transition-all duration-200`}
       >
         {loading ? (
           <span className="flex items-center justify-center">
-            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+            <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
             Processing...
           </span>
         ) : (

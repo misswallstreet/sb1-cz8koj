@@ -6,6 +6,15 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  server: {
+    proxy: {
+      '/api/create-checkout-session': {
+        target: 'https://ecqsojsjmvurrapeexhi.supabase.co/functions/v1/create-checkout-session',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      }
+    }
+  },
   build: {
     outDir: 'dist',
     sourcemap: true,

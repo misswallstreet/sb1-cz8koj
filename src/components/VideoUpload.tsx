@@ -68,7 +68,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({ onVideoSelect }) => {
             ? 'Drop the video here...'
             : 'Drag & drop a video file here, or click to select'}
         </p>
-        <p className="text-xs text-gray-500 mt-1">Supported formats: MP4, MOV, AVI, MKV (max 100MB)</p>
+        <p className="text-xs text-gray-500 mt-1">Supported formats: MP4, MOV, AVI, MKV (max 50MB)</p>
       </div>
 
       <div className="relative">

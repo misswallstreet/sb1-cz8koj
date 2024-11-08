@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { LogIn, UserPlus, FileVideo } from 'lucide-react';
+import { LogIn, UserPlus, Glasses } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const Login: React.FC = () => {
@@ -65,14 +65,14 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#81b29a]/10 to-blue-50 flex flex-col items-center justify-center p-4">
       <div className="flex items-center mb-8">
-        <FileVideo className="h-10 w-10 text-[#81b29a]" />
-        <span className="ml-2 text-3xl font-bold text-gray-900">Transcriptor</span>
+        <Glasses className="h-10 w-10 text-[#81b29a] transform -rotate-12" />
+        <span className="ml-2 text-3xl font-bold text-gray-900">Voxi Scribe</span>
       </div>
       
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900">
-            Welcome to Transcriptor
+            Welcome to Voxi Scribe
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             {isLogin ? "Don't have an account?" : 'Already have an account?'}

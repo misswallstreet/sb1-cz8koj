@@ -171,7 +171,7 @@ export const LandingPage: React.FC = () => {
               Ready to Get Started?
             </h2>
             <p className="text-xl text-white/90 mb-8">
-              Join thousands of satisfied users who trust Transcriptor
+              Join thousands of satisfied users who trust Voxi Scribe
             </p>
             <a
               href="/login"
