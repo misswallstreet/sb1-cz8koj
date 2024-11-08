@@ -12,7 +12,131 @@ import toast from 'react-hot-toast';
 const ITEMS_PER_PAGE = 5;
 
 export const Dashboard: React.FC = () => {
-  // ... (rest of the component code remains the same until the return statement)
+  const { user, signOut } = useAuth();
+  const [transcriptions, setTranscriptions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalMinutes, setTotalMinutes] = useState(0);
+  const [transcriptionStatus, setTranscriptionStatus] = useState<'idle' | 'uploading' | 'transcribing' | 'completed' | 'error'>('idle');
+  const [progress, setProgress] = useState(0);
+  const [transcriptionResult, setTranscriptionResult] = useState<string | undefined>();
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (user) {
+      loadTranscriptions();
+      calculateTotalMinutes();
+    }
+  }, [user]);
+
+  const calculateTotalMinutes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('transcriptions')
+        .select('minutes')
+        .eq('user_id', user?.id)
+        .eq('status', 'completed');
+
+      if (error) throw error;
+
+      const total = data.reduce((sum, item) => sum + (item.minutes || 0), 0);
+      setTotalMinutes(total);
+    } catch (error) {
+      console.error('Error calculating total minutes:', error);
+    }
+  };
+
+  const loadTranscriptions = async (startIndex = 0) => {
+    if (loading) return;
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('transcriptions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .range(startIndex, startIndex + ITEMS_PER_PAGE - 1);
+
+      if (error) throw error;
+
+      if (startIndex === 0) {
+        setTranscriptions(data);
+      } else {
+        setTranscriptions(prev => [...prev, ...data]);
+      }
+
+      setHasMore(data.length === ITEMS_PER_PAGE);
+    } catch (error) {
+      toast.error('Failed to load transcriptions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMore = () => {
+    loadTranscriptions(transcriptions.length);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      window.location.href = '/login';
+    } catch (error) {
+      toast.error('Failed to sign out');
+    }
+  };
+
+  const handleVideoSelect = async (fileOrUrl: File | string) => {
+    setTranscriptionStatus('uploading');
+    setProgress(0);
+    setErrorMessage(undefined);
+    setTranscriptionResult(undefined);
+
+    try {
+      let videoUrl: string;
+      if (fileOrUrl instanceof File) {
+        const uploadResult = await uploadVideo(fileOrUrl);
+        videoUrl = uploadResult.url;
+        setProgress(50);
+      } else {
+        videoUrl = fileOrUrl;
+        setProgress(50);
+      }
+
+      setTranscriptionStatus('transcribing');
+      const transcription = await createTranscriptionJob(videoUrl);
+      
+      if (transcription.status === 'failed') {
+        throw new TranscriptionError(transcription.error_message || 'Transcription failed');
+      }
+
+      setTranscriptionResult(transcription.transcription_text);
+      setTranscriptionStatus('completed');
+      loadTranscriptions();
+      calculateTotalMinutes();
+    } catch (error) {
+      setTranscriptionStatus('error');
+      setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
+    }
+  };
+
+  const handleDownload = (transcription: any) => {
+    if (!transcription.transcription_text) {
+      toast.error('No transcription text available');
+      return;
+    }
+
+    const blob = new Blob([transcription.transcription_text], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transcription-${transcription.id}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

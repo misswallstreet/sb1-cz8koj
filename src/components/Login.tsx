@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { LogIn, UserPlus, FileVideo } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -9,18 +9,30 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    // Check if user is already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        window.location.href = '/';
+      }
+    });
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ 
+        const { error, data } = await supabase.auth.signInWithPassword({ 
           email, 
           password 
         });
         if (error) throw error;
-        toast.success('Successfully logged in!');
+        if (data.session) {
+          toast.success('Successfully logged in!');
+          window.location.href = '/';
+        }
       } else {
         const { error } = await supabase.auth.signUp({ 
           email, 
